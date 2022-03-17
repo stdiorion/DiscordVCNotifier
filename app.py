@@ -36,12 +36,16 @@ async def on_ready():
 
             # Notification channel defaults to system channel
             if notification_channels[channel.id] is None:
-                notification_channels[channel.id] = guild.system_channel
+                notification_channels[channel.id] = guild.system_channel.id
 
 
 # Called when someone makes some update regarding VC
 @client.event
-async def on_voice_state_update(member, before, after):
+async def on_voice_state_update(
+    member: discord.Member,
+    before: discord.VoiceState,
+    after: discord.VoiceState
+):
     # Confirm that the member made inter-voicechannel moves
     if before.channel == after.channel:
         return
@@ -59,7 +63,7 @@ async def on_voice_state_update(member, before, after):
             else:
                 message = f"Voice chat on **{channel.name}** has ended."
 
-            await notification_channels[channel.id].send(message)
+            await client.get_channel(notification_channels[channel.id]).send(message)
             logger.info(f"Sent \"{message}\"")
             
     # When joined somewhere
@@ -71,13 +75,36 @@ async def on_voice_state_update(member, before, after):
         if len(channel.members) == 1 and notification_channels[channel.id] is not None:
             message = f"{notification_messages[channel.id]}\n**{member.name}** has started voice chat on **{channel.name}**!"
 
-            await notification_channels[channel.id].send(message)
+            await client.get_channel(notification_channels[channel.id]).send(message)
             logger.info(f"Sent \"{message}\"")
 
             vc_starttimes[channel.id] = datetime.datetime.now()
 
 
-# TODO: Change notification channels with slash commands
+@client.slash_command(name="vcnsetchannel", description="Set in which channel you want VCNotifier to send messages")
+async def vcnsetchannel(
+    ctx: discord.ApplicationContext,
+    text_channel: discord.Option(str, "Channel in which you want VCNotifier to send messages", required=True),
+    voice_channel: discord.Option(str, "Want to set it for specific voice channel?") = None
+):
+    for tch in ctx.interaction.guild.channels:
+        if not (tch.type == discord.ChannelType.text and tch.name == text_channel):
+            continue
+
+        for vch in ctx.interaction.guild.channels:
+            if not (vch.type == discord.ChannelType.voice and (voice_channel is None or vch.name == voice_channel)):
+                continue
+
+            notification_channels[vch.id] = tch.id
+            await ctx.respond(f"Notification channel for {voice_channel if voice_channel is not None else 'all channel'} set to be {text_channel}!")
+            return
+
+        await ctx.respond(f"Voice channel {voice_channel} not found.")
+        return
+
+    await ctx.respond(f"Text channel {text_channel} not found.")
+
+
 # TODO: Change notification messages with slash commands
 
 client.run()
