@@ -60,12 +60,12 @@ async def on_voice_state_update(
         if len(channel.members) == 0 and notification_channels[channel.id] is not None:
             if channel.id in vc_starttimes:
                 vc_length = datetime.datetime.now() - vc_starttimes.pop(channel.id)
-                message = f"Voice chat on **{channel.name}** has ended. (lasted for {vc_length})"
+                msg = f"Voice chat on **{channel.name}** has ended. (lasted for {vc_length})"
             else:
-                message = f"Voice chat on **{channel.name}** has ended."
+                msg = f"Voice chat on **{channel.name}** has ended."
 
-            await client.get_channel(notification_channels[channel.id]).send(message)
-            logger.info(f"Sent \"{message}\"")
+            await client.get_channel(notification_channels[channel.id]).send(msg)
+            logger.info(f"Sent \"{msg}\"")
             
     # When joined somewhere
     if after.channel is not None:
@@ -74,10 +74,10 @@ async def on_voice_state_update(
 
         # In case new voice chat started
         if len(channel.members) == 1 and notification_channels[channel.id] is not None:
-            message = f"{notification_messages[channel.id]}\n**{member.name}** has started voice chat on **{channel.name}**!"
+            msg = f"{notification_messages[channel.id]}\n**{member.name}** has started voice chat on **{channel.name}**!"
 
-            await client.get_channel(notification_channels[channel.id]).send(message)
-            logger.info(f"Sent \"{message}\"")
+            await client.get_channel(notification_channels[channel.id]).send(msg)
+            logger.info(f"Sent \"{msg}\"")
 
             vc_starttimes[channel.id] = datetime.datetime.now()
 
@@ -96,22 +96,38 @@ async def vcnsetchannel(
     ), None) # default value
 
     if textch_id is None:
-        await ctx.respond(f"Text channel **{text_channel}** not found.")
+        msg = f"Text channel **{text_channel}** not found."
+        await ctx.respond(msg)
+        logger.warning(msg)
         return
+
+    if voice_channel is None:
+        for voicech in ctx.interaction.guild.channels:
+            notification_channels[voicech.id] = textch_id
+
+        msg = f"From now, notification for **all channel** will take place in **{text_channel}**!"
+        await ctx.respond(msg)
+        logger.info(msg)
+        return
+
 
     # Find voice channel with specified name
     voicech_id = next((
         voicech.id
         for voicech in ctx.interaction.guild.channels
-        if voicech.type == discord.ChannelType.voice and (voice_channel is None or voicech.name == voice_channel)
+        if voicech.type == discord.ChannelType.voice and voicech.name == voice_channel
     ), None)
 
     if voicech_id is None:
-        await ctx.respond(f"Voice channel **{voice_channel}** not found.")
+        msg = f"Voice channel **{voice_channel}** not found."
+        await ctx.respond(msg)
+        logger.warning(msg)
         return
 
     notification_channels[voicech_id] = textch_id
-    await ctx.respond(f"Notification channel for **{voice_channel if voice_channel is not None else 'all channel'}** set to be **{text_channel}**!")
+    msg = f"From now, notification for **{voice_channel}** will take place in **{text_channel}**!"
+    await ctx.respond(msg)
+    logger.info(msg)
 
 
 @client.slash_command(name="vcnsetmessage", description="Set what VCNotifier will say")
@@ -120,6 +136,15 @@ async def vcnsetmessage(
     message: discord.Option(str, "Message you like (can include @mention)", required=True),
     voice_channel: discord.Option(str, "Want to set it for specific voice channel?") = None
 ):
+    if voice_channel is None:
+        for voicech in ctx.interaction.guild.channels:
+            notification_messages[voicech.id] = message
+
+        msg = f"Notification message for **all channel** set to be \"{message}\"!"
+        await ctx.respond(msg)
+        logger.info(msg)
+        return
+    
     # Find voice channel with specified name
     voicech_id = next((
         voicech.id
@@ -128,11 +153,15 @@ async def vcnsetmessage(
     ), None)
 
     if voicech_id is None:
-        await ctx.respond(f"Voice channel **{voice_channel}** not found.")
+        msg = f"Voice channel **{voice_channel}** not found."
+        await ctx.respond(msg)
+        logger.warning(msg)
         return
 
     notification_messages[voicech_id] = message
-    await ctx.respond(f"Notification message for **{voice_channel if voice_channel is not None else 'all channel'}** set to be \"{message}\"!")
+    msg = f"Notification message for **{voice_channel}** set to be \"{message}\"!"
+    await ctx.respond(msg)
+    logger.info(msg)
 
 
 client.run()
