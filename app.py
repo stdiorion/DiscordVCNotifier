@@ -4,7 +4,7 @@ import logging
 import discord
 
 
-client = discord.Client()
+client = discord.Bot()
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
