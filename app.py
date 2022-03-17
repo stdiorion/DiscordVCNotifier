@@ -81,7 +81,7 @@ async def on_voice_state_update(
             vc_starttimes[channel.id] = datetime.datetime.now()
 
 
-@client.slash_command(name="vcnsetchannel", description="Set in which channel you want VCNotifier to send messages")
+@client.slash_command(name="vcnsetchannel", description="Set which channel VCNotifier will send messages to")
 async def vcnsetchannel(
     ctx: discord.ApplicationContext,
     text_channel: discord.Option(str, "Channel in which you want VCNotifier to send messages", required=True),
