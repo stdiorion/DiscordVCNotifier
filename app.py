@@ -1,6 +1,7 @@
 from collections import defaultdict
 import datetime
 import logging
+import re
 import discord
 
 
@@ -95,7 +96,7 @@ async def vcnsetchannel(
     ), None) # default value
 
     if textch_id is None:
-        await ctx.respond(f"Text channel {text_channel} not found.")
+        await ctx.respond(f"Text channel **{text_channel}** not found.")
         return
 
     # Find voice channel with specified name
@@ -106,13 +107,32 @@ async def vcnsetchannel(
     ), None)
 
     if voicech_id is None:
-        await ctx.respond(f"Voice channel {voice_channel} not found.")
+        await ctx.respond(f"Voice channel **{voice_channel}** not found.")
         return
 
     notification_channels[voicech_id] = textch_id
-    await ctx.respond(f"Notification channel for {voice_channel if voice_channel is not None else 'all channel'} set to be {text_channel}!")
+    await ctx.respond(f"Notification channel for **{voice_channel if voice_channel is not None else 'all channel'}** set to be **{text_channel}**!")
 
 
-# TODO: Change notification messages with slash commands
+@client.slash_command(name="vcnsetmessage", description="Set what VCNotifier will say")
+async def vcnsetmessage(
+    ctx: discord.ApplicationContext,
+    message: discord.Option(str, "Message you like (can include @mention)", required=True),
+    voice_channel: discord.Option(str, "Want to set it for specific voice channel?") = None
+):
+    # Find voice channel with specified name
+    voicech_id = next((
+        voicech.id
+        for voicech in ctx.interaction.guild.channels
+        if voicech.type == discord.ChannelType.voice and (voice_channel is None or voicech.name == voice_channel)
+    ), None)
+
+    if voicech_id is None:
+        await ctx.respond(f"Voice channel **{voice_channel}** not found.")
+        return
+
+    notification_messages[voicech_id] = message
+    await ctx.respond(f"Notification message for **{voice_channel if voice_channel is not None else 'all channel'}** set to be \"{message}\"!")
+
 
 client.run()
